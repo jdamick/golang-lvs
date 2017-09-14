@@ -20,15 +20,22 @@ var (
 
 	// these are to allow a pluggable backend for testing, ipvsadm is
 	// not needed to run the tests
-	backend      = execute
-	backendRun   = run
-	backendStdin = executeStdin
+	// backend      = execute
+	// backendRun   = run
+	// backendStdin = executeStdin
+	BackendExecutor = &defaultBackendExecutor{}
 )
+
+type Executor interface {
+	Execute(exe string, args ...string) error
+	Run(args []string) ([]byte, error)
+	ExecuteWithStdin(in, exe string, args ...string) error
+}
 
 // Load verifies that lvs can be used, and populates it with values
 // from the backup file
 func Load() error {
-	if err := check(); err != nil {
+	if err := Check(); err != nil {
 		return err
 	}
 
@@ -37,8 +44,9 @@ func Load() error {
 	return nil
 }
 
-func check() error {
-	if err := backend("which", "ipvsadm"); err != nil {
+// Check the lvs can be used.
+func Check() error {
+	if err := execute("which", "ipvsadm"); err != nil {
 		return IpvsadmMissing
 	}
 	return nil
@@ -72,16 +80,10 @@ func Zero() error {
 	return DefaultIpvs.Zero()
 }
 
-func run(args []string) ([]byte, error) {
-	cmd := exec.Command(args[0], args[1:]...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, errors.New(err.Error() + " output: " + string(output))
-	}
-	return output, err
+type defaultBackendExecutor struct {
 }
 
-func execute(exe string, args ...string) error {
+func (d *defaultBackendExecutor) Execute(exe string, args ...string) error {
 	// fmt.Printf("%s\n", strings.Join(append([]string{exe}, args...), " "))
 	cmd := exec.Command(exe, args...)
 	output, err := cmd.CombinedOutput()
@@ -91,7 +93,16 @@ func execute(exe string, args ...string) error {
 	return nil
 }
 
-func executeStdin(in, exe string, args ...string) error {
+func (d *defaultBackendExecutor) Run(args []string) ([]byte, error) {
+	cmd := exec.Command(args[0], args[1:]...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, errors.New(err.Error() + " output: " + string(output))
+	}
+	return output, err
+}
+
+func (d *defaultBackendExecutor) ExecuteWithStdin(in, exe string, args ...string) error {
 	// fmt.Printf("%s\n%s\n", strings.Join(append([]string{exe}, args...), " "), in)
 	var err error
 	var total, part, segment int
@@ -113,4 +124,16 @@ func executeStdin(in, exe string, args ...string) error {
 	}
 	stdin.Close()
 	return cmd.Wait()
+}
+
+func run(args []string) ([]byte, error) {
+	return BackendExecutor.Run(args)
+}
+
+func execute(exe string, args ...string) error {
+	return BackendExecutor.Execute(exe, args...)
+}
+
+func executeStdin(in, exe string, args ...string) error {
+	return BackendExecutor.ExecuteWithStdin(in, exe, args...)
 }

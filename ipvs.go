@@ -43,12 +43,12 @@ func (i *Ipvs) AddService(service Service) error {
 	if i.FindService(service.Type, service.Host, service.Port) != nil {
 		return nil
 	}
-	err = backend("ipvsadm", append([]string{"-A", ServiceTypeFlag[service.Type], service.getHostPort(), "-s", ServiceSchedulerFlag[service.Scheduler]}, append(service.getPersistence(), service.getNetmask()...)...)...)
+	err = execute("ipvsadm", append([]string{"-A", ServiceTypeFlag[service.Type], service.getHostPort(), "-s", ServiceSchedulerFlag[service.Scheduler]}, append(service.getPersistence(), service.getNetmask()...)...)...)
 	if err != nil {
 		return err
 	}
 	for i := range service.Servers {
-		err := backend("ipvsadm", append([]string{"-a", ServiceTypeFlag[service.Type], service.getHostPort(), "-r"}, strings.Split(service.Servers[i].String(), " ")...)...)
+		err := execute("ipvsadm", append([]string{"-a", ServiceTypeFlag[service.Type], service.getHostPort(), "-r"}, strings.Split(service.Servers[i].String(), " ")...)...)
 		if err != nil {
 			return err
 		}
@@ -58,7 +58,7 @@ func (i *Ipvs) AddService(service Service) error {
 }
 
 func (i *Ipvs) EditService(service Service) error {
-	err := backend("ipvsadm", append([]string{"-E", ServiceTypeFlag[service.Type], service.getHostPort(), ServiceSchedulerFlag[service.Scheduler]}, append(service.getPersistence(), service.getNetmask()...)...)...)
+	err := execute("ipvsadm", append([]string{"-E", ServiceTypeFlag[service.Type], service.getHostPort(), ServiceSchedulerFlag[service.Scheduler]}, append(service.getPersistence(), service.getNetmask()...)...)...)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (i *Ipvs) EditService(service Service) error {
 }
 
 func (i *Ipvs) RemoveService(netType, host string, port int) error {
-	err := backend("ipvsadm", "-D", ServiceTypeFlag[netType], fmt.Sprintf("%s:%d", host, port))
+	err := execute("ipvsadm", "-D", ServiceTypeFlag[netType], fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func (i *Ipvs) RemoveService(netType, host string, port int) error {
 }
 
 func (i *Ipvs) Clear() error {
-	err := backend("ipvsadm", "-C")
+	err := execute("ipvsadm", "-C")
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func (i *Ipvs) Clear() error {
 
 func (i Ipvs) SetTimeouts() error {
 	if i.Tcp > 0 || i.Tcpfin > 0 || i.Udp > 0 {
-		return backend("ipvsadm", "--set", string(i.Tcp), string(i.Tcpfin), string(i.Udp))
+		return execute("ipvsadm", "--set", string(i.Tcp), string(i.Tcpfin), string(i.Udp))
 	}
 	return nil
 }
@@ -109,7 +109,7 @@ func (i *Ipvs) Restore(services []Service) error {
 	for i := range services {
 		in = append(in, services[i].String())
 	}
-	err := backendStdin(strings.Join(in, ""), "ipvsadm", "-R")
+	err := executeStdin(strings.Join(in, ""), "ipvsadm", "-R")
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (i *Ipvs) Restore(services []Service) error {
 
 // save reads the applied ipvsadm rules from the host and saves them as i.Services
 func (i *Ipvs) Save() error {
-	out, err := backendRun([]string{"ipvsadm", "-S", "-n"})
+	out, err := run([]string{"ipvsadm", "-S", "-n"})
 	if err != nil {
 		return err
 	}
@@ -150,11 +150,11 @@ func (i Ipvs) StartDaemon() (error, error) {
 	if i.MulticastInterface != "" {
 		var err1, err2 error
 		if i.Syncid > 0 {
-			err1 = backend("ipvsadm", "--start-daemon", "master", "--mcast-interface", i.MulticastInterface, "--syncid", string(i.Syncid))
-			err2 = backend("ipvsadm", "--start-daemon", "backup", "--mcast-interface", i.MulticastInterface, "--syncid", string(i.Syncid))
+			err1 = execute("ipvsadm", "--start-daemon", "master", "--mcast-interface", i.MulticastInterface, "--syncid", string(i.Syncid))
+			err2 = execute("ipvsadm", "--start-daemon", "backup", "--mcast-interface", i.MulticastInterface, "--syncid", string(i.Syncid))
 		} else {
-			err1 = backend("ipvsadm", "--start-daemon", "master", "--mcast-interface", i.MulticastInterface)
-			err2 = backend("ipvsadm", "--start-daemon", "backup", "--mcast-interface", i.MulticastInterface)
+			err1 = execute("ipvsadm", "--start-daemon", "master", "--mcast-interface", i.MulticastInterface)
+			err2 = execute("ipvsadm", "--start-daemon", "backup", "--mcast-interface", i.MulticastInterface)
 		}
 		return err1, err2
 	}
@@ -164,13 +164,13 @@ func (i Ipvs) StartDaemon() (error, error) {
 func (i Ipvs) StopDaemon() (error, error) {
 	if i.MulticastInterface != "" {
 		var err1, err2 error
-		err1 = backend("ipvsadm", "--stop-daemon", "master")
-		err2 = backend("ipvsadm", "--stop-daemon", "backup")
+		err1 = execute("ipvsadm", "--stop-daemon", "master")
+		err2 = execute("ipvsadm", "--stop-daemon", "backup")
 		return err1, err2
 	}
 	return nil, nil
 }
 
 func (i Ipvs) Zero() error {
-	return backend("ipvsadm", "-Z")
+	return execute("ipvsadm", "-Z")
 }

@@ -94,7 +94,7 @@ func (s *Service) AddServer(server Server) error {
 	if s.FindServer(server.Host, server.Port) != nil {
 		return nil
 	}
-	err = backend("ipvsadm", append([]string{"-a", ServiceTypeFlag[s.Type], s.getHostPort(), "-r"}, strings.Split(server.String(), " ")...)...)
+	err = execute("ipvsadm", append([]string{"-a", ServiceTypeFlag[s.Type], s.getHostPort(), "-r"}, strings.Split(server.String(), " ")...)...)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (s *Service) EditServer(server Server) error {
 		return InvalidServerPort
 	}
 
-	err = backend("ipvsadm", append([]string{"-e", ServiceTypeFlag[s.Type], s.getHostPort(), "-r"}, strings.Split(server.String(), " ")...)...)
+	err = execute("ipvsadm", append([]string{"-e", ServiceTypeFlag[s.Type], s.getHostPort(), "-r"}, strings.Split(server.String(), " ")...)...)
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func (s *Service) EditServer(server Server) error {
 }
 
 func (s *Service) RemoveServer(host string, port int) error {
-	err := backend("ipvsadm", "-d", ServiceTypeFlag[s.Type], s.getHostPort(), "-r", fmt.Sprintf("%s:%d", host, port))
+	err := execute("ipvsadm", "-d", ServiceTypeFlag[s.Type], s.getHostPort(), "-r", fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
 		return err
 	}
@@ -186,15 +186,15 @@ func (s Service) String() string {
 }
 
 func (s Service) Add() error {
-	return backend("ipvsadm", append([]string{"-A", ServiceTypeFlag[s.Type], s.getHostPort(), "-s", ServiceSchedulerFlag[s.Scheduler]}, append(s.getPersistence(), s.getNetmask()...)...)...)
+	return execute("ipvsadm", append([]string{"-A", ServiceTypeFlag[s.Type], s.getHostPort(), "-s", ServiceSchedulerFlag[s.Scheduler]}, append(s.getPersistence(), s.getNetmask()...)...)...)
 }
 
 func (s Service) Remove() error {
-	return backend("ipvsadm", "-D", ServiceTypeFlag[s.Type], s.getHostPort())
+	return execute("ipvsadm", "-D", ServiceTypeFlag[s.Type], s.getHostPort())
 }
 
 func (s Service) Zero() error {
-	return backend("ipvsadm", "-Z", ServiceTypeFlag[s.Type], s.getHostPort())
+	return execute("ipvsadm", "-Z", ServiceTypeFlag[s.Type], s.getHostPort())
 }
 
 func parseService(serviceString string) Service {
